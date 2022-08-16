@@ -117,47 +117,38 @@ def _convert_to_wav(
     return filepath_converted
 
 
-def _remove_nonvoice_segments(arr, min_length=1000, min_value=1e8):
+def _remove_nonvoice_segments(arr, min_length=1000, min_value_rel=0.01):
     """Naive implementation: identify all segments with absolute activation lower than a threshold and a given min length."""
     # TODO We have to normalise the amplitude?
     # TODO Try webrtcvad
 
     arr = np.asarray(arr)  # enforce numpy array
-    arr_binary = arr >= min_value
+
+    arr_norm = arr / arr.max()
+    arr_binary = arr_norm >= min_value_rel
 
     idx_pairwise_unequal = arr_binary[1:] != arr_binary[:-1]
     idx_end = np.append(np.where(idx_pairwise_unequal), len(arr_binary) - 1)
     seg_length = np.diff(np.append(-1, idx_end))  # lengths of segments
-    idx_start = np.cumsum(np.append(0, seg_length))[:-1]
 
     # filter for value zero
-    idx_end_valuefilter = idx_end[arr_binary[idx_end] == 0]
-    idx_start_valuefilter = idx_start[arr_binary[idx_start] == 0]
-    seg_length_valuefilter = (idx_end_valuefilter - idx_start_valuefilter) + 1
+    mask_valuefilter = arr_binary[idx_end] == 0
+    idx_end_valuefilter = idx_end[mask_valuefilter]
+    seg_length_valuefilter = seg_length[mask_valuefilter]
 
     # filter for min_length
     mask_lenfilter = seg_length_valuefilter >= min_length
     idx_end_valuefilter_lenfilter = idx_end_valuefilter[mask_lenfilter]
-    idx_start_valuefilter_lenfilter = idx_start_valuefilter[mask_lenfilter]
+    seg_length_valuefilter_lenfilter = seg_length_valuefilter[mask_lenfilter]
 
     mask = np.repeat(True, len(arr_binary))
-    for s, e in zip(
-        idx_start_valuefilter_lenfilter, idx_end_valuefilter_lenfilter
+    for end, length in zip(
+        idx_end_valuefilter_lenfilter, seg_length_valuefilter_lenfilter
     ):
-        mask[s : e + 1] = 0
+        mask[end - length + 1 : end + 1] = 0
 
     return arr[mask]
 
 
 if __name__ == "__main__":
-    import time
-
-    start = time.time()
-    process(do_parallel=False)
-    end = time.time()
-    print(end - start)
-
-    start = time.time()
     process(do_parallel=True)
-    end = time.time()
-    print(end - start)
