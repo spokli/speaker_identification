@@ -11,13 +11,17 @@ from scipy.io import wavfile
 from src import config
 
 
-def process(do_parallel=True):
+def process(do_parallel=True, first_n_files=None):
     # load files
 
     filenames = os.listdir(config.PATH_DATA_RAW)
     filepaths = [
         os.path.join(config.PATH_DATA_RAW, filename) for filename in filenames
     ]
+
+    if first_n_files is not None:
+        first_n_files = int(min(first_n_files, len(filepaths)))
+        filepaths = filepaths[:first_n_files]
 
     if do_parallel:
         pool = mp.Pool(mp.cpu_count())
@@ -27,7 +31,15 @@ def process(do_parallel=True):
         ]
     else:
         features = [_parallel_worker(filepath) for filepath in filepaths]
-    print("Finished")
+    print("Finished Feature Extraction")
+
+    # Store features
+    _store_features(features)
+
+
+def _store_features(features: dict[str, np.ndarray]) -> None:
+    for filename, features in features:
+        np.save(f"data/04_features/{filename}.npy", features)
 
 
 def _parallel_worker(filepath) -> tuple[str, npt.NDArray]:
@@ -47,7 +59,7 @@ def _parallel_worker(filepath) -> tuple[str, npt.NDArray]:
 
     # if stereo, crop second channel
     if len(data.shape) == 2 and data.shape[1] == 2:
-        data = data[:, 0]
+        data = np.mean(data, axis=1, dtype=data.dtype)
 
     # perform noise reduction
     data = noisereduce.reduce_noise(y=data, sr=rate)
@@ -86,6 +98,9 @@ def _parallel_worker(filepath) -> tuple[str, npt.NDArray]:
     # Now calculate delta features
     delta_features = delta(mfcc_features, 2)  # calculating delta
     combined_features = np.hstack((mfcc_features, delta_features))
+
+    # TODO: check if we need to calculate CMS and CMVN
+    # See https://maelfabien.github.io/machinelearning/Speech1/#cepstral-mean-substraction-cms
     return (filename, combined_features)
 
 
@@ -151,4 +166,4 @@ def _remove_nonvoice_segments(arr, min_length=1000, min_value_rel=0.01):
 
 
 if __name__ == "__main__":
-    process(do_parallel=True)
+    process(do_parallel=True, first_n_files=4)

@@ -139,3 +139,5 @@ dmypy.json
 *.aac
 *.mp4
 *.mp3
+# only ignore csv files if they are in the data directory
+data/**/*.csv

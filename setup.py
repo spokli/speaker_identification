@@ -18,6 +18,8 @@ setup(
     packages=find_packages(exclude=["test"]),
     python_requires=">=3.8, <4",
     install_requires=[
+        "numpy",
+        "pandas",
         "scipy",
         "scikit-learn",
         "pydub",
