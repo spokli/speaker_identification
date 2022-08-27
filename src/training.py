@@ -27,9 +27,10 @@ def _load_features(first_n_files: int = None) -> dict[str, np.ndarray]:
     features = {}
 
     for filepath in filepaths:
-        feature_arr = np.load(filepath)
-        filename_noext = os.path.splitext(os.path.split(filepath)[-1])[0]
-        features.update({filename_noext: feature_arr})
+        if filepath.endswith(".npy"):
+            feature_arr = np.load(filepath, allow_pickle=True)
+            filename_noext = os.path.splitext(os.path.split(filepath)[-1])[0]
+            features.update({filename_noext: feature_arr})
 
     return features
 
